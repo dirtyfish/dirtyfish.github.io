@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Shader, Physics & Jump Demo</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    /* Position the jump button */
+    #jumpButton {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <button id="jumpButton">Jump</button>
+  
+  <!-- Three.js library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Cannon.js library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+  
+  <script>
+    // ---------------------------
+    // Setup Cannon.js Physics World
+    // ---------------------------
+    const world = new CANNON.World();
+    world.gravity.set(0, -9.82, 0); // gravity in m/s² downward
+    world.broadphase = new CANNON.NaiveBroadphase();
+
+    // Create a static physics plane (the ground)
+    const groundBody = new CANNON.Body({
+      mass: 0  // mass = 0 makes it static
+    });
+    const groundShape = new CANNON.Plane();
+    groundBody.addShape(groundShape);
+    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    world.addBody(groundBody);
+
+    // Create a dynamic box body
+    const boxSize = 1;
+    const boxShape = new CANNON.Box(new CANNON.Vec3(boxSize / 2, boxSize / 2, boxSize / 2));
+    const boxBody = new CANNON.Body({ mass: 1 }); // mass > 0 makes it dynamic
+    boxBody.addShape(boxShape);
+    boxBody.position.set(0, 5, 0);
+    world.addBody(boxBody);
+
+    // ---------------------------
+    // Setup Three.js Scene
+    // ---------------------------
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 10);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Add lighting to the scene
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 10, 7.5);
+    scene.add(directionalLight);
+
+    // Create a ground plane in Three.js to match the physics plane
+    const planeGeometry = new THREE.PlaneGeometry(20, 20);
+    const planeMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+    const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
+    planeMesh.rotation.x = -Math.PI / 2;
+    scene.add(planeMesh);
+
+    // ---------------------------
+    // Custom Shader Material for the Box
+    // ---------------------------
+    const shaderMaterial = new THREE.ShaderMaterial({
+      vertexShader: `
+        varying vec3 vPosition;
+        void main() {
+          vPosition = position;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vPosition;
+        void main() {
+          // Color based on the absolute value of position coordinates
+          gl_FragColor = vec4(abs(vPosition), 1.0);
+        }
+      `
+    });
+
+    // Create a box mesh using the custom shader material
+    const boxGeometry = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
+    const boxMesh = new THREE.Mesh(boxGeometry, shaderMaterial);
+    scene.add(boxMesh);
+
+    // ---------------------------
+    // Jump Function
+    // ---------------------------
+    // Applies an upward impulse to the box.
+    function jump() {
+      // Define the upward impulse.
+      // Adjust the magnitude as needed.
+      const jumpImpulse = new CANNON.Vec3(0, 5, 0);
+      boxBody.applyImpulse(jumpImpulse, boxBody.position);
+    }
+
+    // Event listener for the jump button
+    document.getElementById('jumpButton').addEventListener('click', jump);
+
+    // Automatically make the box jump every 30 seconds (30000 milliseconds)
+    setInterval(jump, 30000);
+
+    // ---------------------------
+    // Animation Loop
+    // ---------------------------
+    const timeStep = 1 / 60; // seconds
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Step the physics world
+      world.step(timeStep);
+
+      // Sync the Three.js mesh position and rotation with the physics body
+      boxMesh.position.copy(boxBody.position);
+      boxMesh.quaternion.copy(boxBody.quaternion);
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // ---------------------------
+    // Handle Window Resize
+    // ---------------------------
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
