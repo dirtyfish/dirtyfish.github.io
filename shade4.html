@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Shader, Physics, Jump & Forward Demo</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    /* Style for the Jump button */
+    #jumpButton {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      z-index: 100;
+    }
+    /* Style for the Forward button */
+    #forwardButton {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 150px;
+      height: 50px;
+      font-size: 16px;
+      z-index: 100;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <button id="jumpButton">Jump</button>
+  <button id="forwardButton">Forward</button>
+  
+  <!-- Three.js library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Cannon.js library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+  
+  <script>
+    // ---------------------------
+    // Setup Cannon.js Physics World
+    // ---------------------------
+    const world = new CANNON.World();
+    world.gravity.set(0, -9.82, 0); // gravity (m/s²) downward
+    world.broadphase = new CANNON.NaiveBroadphase();
+
+    // Create a static ground plane
+    const groundBody = new CANNON.Body({ mass: 0 });
+    const groundShape = new CANNON.Plane();
+    groundBody.addShape(groundShape);
+    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    world.addBody(groundBody);
+
+    // Create a dynamic box body
+    const boxSize = 1;
+    const boxShape = new CANNON.Box(new CANNON.Vec3(boxSize / 2, boxSize / 2, boxSize / 2));
+    const boxBody = new CANNON.Body({ mass: 1 });
+    boxBody.addShape(boxShape);
+    boxBody.position.set(0, 5, 0);
+    world.addBody(boxBody);
+
+    // Array to keep track of spawned balls
+    const balls = [];
+
+    // ---------------------------
+    // Setup Three.js Scene
+    // ---------------------------
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 10);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 10, 7.5);
+    scene.add(directionalLight);
+
+    // Ground plane (Three.js)
+    const planeGeometry = new THREE.PlaneGeometry(20, 20);
+    const planeMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+    const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
+    planeMesh.rotation.x = -Math.PI / 2;
+    scene.add(planeMesh);
+
+    // ---------------------------
+    // Custom Shader Material for the Box
+    // ---------------------------
+    const shaderMaterial = new THREE.ShaderMaterial({
+      vertexShader: `
+        varying vec3 vPosition;
+        void main() {
+          vPosition = position;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vPosition;
+        void main() {
+          gl_FragColor = vec4(abs(vPosition), 1.0);
+        }
+      `
+    });
+
+    // Create the box mesh (Three.js)
+    const boxGeometry = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
+    const boxMesh = new THREE.Mesh(boxGeometry, shaderMaterial);
+    scene.add(boxMesh);
+
+    // ---------------------------
+    // Ball Spawning Function (for air jumps)
+    // ---------------------------
+    function spawnBall() {
+      const ballRadius = 0.3;
+      const ballMass = 1;
+      
+      // Create physics body for ball
+      const ballShape = new CANNON.Sphere(ballRadius);
+      const ballBody = new CANNON.Body({ mass: ballMass });
+      ballBody.addShape(ballShape);
+      // Spawn near the box (with a slight upward offset)
+      ballBody.position.set(boxBody.position.x, boxBody.position.y + 0.5, boxBody.position.z);
+      world.addBody(ballBody);
+      
+      // Create Three.js mesh for ball
+      const ballGeometry = new THREE.SphereGeometry(ballRadius, 32, 32);
+      const ballMaterial = new THREE.MeshPhongMaterial({
+        color: 0xff0000,
+        transparent: true,
+        opacity: 1.0
+      });
+      const ballMesh = new THREE.Mesh(ballGeometry, ballMaterial);
+      scene.add(ballMesh);
+      
+      // Launch the ball with an impulse (upward and forward)
+      const impulse = new CANNON.Vec3(0, 5, -2);
+      ballBody.applyImpulse(impulse, ballBody.position);
+      
+      // Record the spawn time (in seconds)
+      const spawnTime = performance.now() / 1000;
+      balls.push({ body: ballBody, mesh: ballMesh, spawnTime: spawnTime });
+    }
+
+    // ---------------------------
+    // Jump Function
+    // ---------------------------
+    function jump() {
+      // Simple ground check: if the box's center is near y = 0.5 (box size/2), we assume it's on the ground.
+      const onGroundThreshold = 0.55;
+      if (boxBody.position.y <= onGroundThreshold) {
+        // Box on ground: apply an upward impulse.
+        const jumpImpulse = new CANNON.Vec3(0, 5, 0);
+        boxBody.applyImpulse(jumpImpulse, boxBody.position);
+      } else {
+        // Box in the air: spawn a ball.
+        spawnBall();
+      }
+    }
+
+    document.getElementById('jumpButton').addEventListener('click', jump);
+    // Automatic jump every 30 seconds as before.
+    setInterval(jump, 30000);
+
+    // ---------------------------
+    // Forward Movement & Rotation Controls
+    // ---------------------------
+    let moveForward = false;
+    let turningValue = 0; // Negative for left, positive for right.
+    
+    const forwardButton = document.getElementById('forwardButton');
+    
+    // When the forward button is pressed, determine turning based on click position.
+    forwardButton.addEventListener('mousedown', (event) => {
+      moveForward = true;
+      updateTurning(event);
+    });
+    
+    // Update turning while moving if the mouse moves over the button.
+    forwardButton.addEventListener('mousemove', (event) => {
+      if (moveForward) {
+        updateTurning(event);
+      }
+    });
+    
+    // When the mouse is released, stop forward movement.
+    document.addEventListener('mouseup', () => {
+      moveForward = false;
+      turningValue = 0;
+    });
+    
+    // Function to update turning based on mouse position relative to the button.
+    function updateTurning(event) {
+      const rect = forwardButton.getBoundingClientRect();
+      // Get horizontal offset inside the button
+      const offsetX = event.clientX - rect.left;
+      // Determine turning:
+      // If click is at the left edge, turningValue ~ -1, at right edge ~ 1.
+      turningValue = ((offsetX / rect.width) - 0.5) * 2;
+      // Optionally, you can add a dead zone in the center (e.g., if within 10% of center, set to 0).
+      if (Math.abs(turningValue) < 0.2) {
+        turningValue = 0;
+      }
+    }
+
+    // ---------------------------
+    // Animation Loop
+    // ---------------------------
+    const timeStep = 1/60; // seconds per simulation step
+
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      // Step the physics world
+      world.step(timeStep);
+
+      // If the forward button is pressed, apply forward force and rotation.
+      if (moveForward) {
+        // Compute forward direction based on the box's current orientation.
+        // In Three.js, assuming the box faces toward negative Z by default.
+        const forward = new THREE.Vector3(0, 0, -1);
+        forward.applyQuaternion(boxMesh.quaternion);
+        forward.normalize();
+        
+        // Apply a forward force (tweak magnitude as desired)
+        const forceMagnitude = 10;
+        const force = new CANNON.Vec3(forward.x * forceMagnitude, forward.y * forceMagnitude, forward.z * forceMagnitude);
+        boxBody.applyForce(force, boxBody.position);
+        
+        // Apply rotation: adjust angular velocity around the Y axis.
+        // Here, turningValue determines the rate: negative for left, positive for right.
+        // (You can adjust the factor 2 to modify turn speed.)
+        boxBody.angularVelocity.y = turningValue * 2;
+      }
+      
+      // Sync box mesh with its physics body.
+      boxMesh.position.copy(boxBody.position);
+      boxMesh.quaternion.copy(boxBody.quaternion);
+      
+      // Update spawned balls (fading them out over 10 seconds)
+      const currentTime = performance.now() / 1000;
+      for (let i = balls.length - 1; i >= 0; i--) {
+        const ball = balls[i];
+        ball.mesh.position.copy(ball.body.position);
+        ball.mesh.quaternion.copy(ball.body.quaternion);
+        
+        const elapsed = currentTime - ball.spawnTime;
+        if (elapsed < 10) {
+          ball.mesh.material.opacity = 1 - (elapsed / 10);
+        } else {
+          scene.remove(ball.mesh);
+          world.removeBody(ball.body);
+          balls.splice(i, 1);
+        }
+      }
+      
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // ---------------------------
+    // Handle Window Resize
+    // ---------------------------
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
