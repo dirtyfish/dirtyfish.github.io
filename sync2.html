@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoundCloud Sync Animation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            text-align: center;
+        }
+
+        header {
+            margin-bottom: 40px;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            background: linear-gradient(to right, #ff7a8a, #ff9e6d, #ffd26d);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #a0a0c0;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .player-container {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            margin-bottom: 40px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .visualization {
+            position: relative;
+            height: 300px;
+            margin-bottom: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .visual-element {
+            position: absolute;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff7a8a, #ff9e6d);
+            box-shadow: 0 0 20px rgba(255, 122, 138, 0.5);
+            transform: translate(-50%, -50%);
+            top: 50%;
+            left: 50%;
+            transition: all 0.1s ease-out;
+        }
+
+        .visual-bar {
+            position: absolute;
+            bottom: 0;
+            width: 10px;
+            background: linear-gradient(to top, #ff7a8a, #ff9e6d);
+            border-radius: 5px 5px 0 0;
+            transform-origin: bottom;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        .soundcloud-embed {
+            width: 100%;
+            height: 166px;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .sync-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            color: #a0a0c0;
+        }
+
+        .sync-info span {
+            color: #ffd26d;
+            font-weight: bold;
+        }
+
+        .animation-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .animation-control-group {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 350px;
+        }
+
+        .animation-control-group h3 {
+            margin-bottom: 15px;
+            color: #ffd26d;
+        }
+
+        .slider-container {
+            margin: 15px 0;
+        }
+
+        .slider-container label {
+            display: block;
+            margin-bottom: 8px;
+            color: #a0a0c0;
+        }
+
+        .slider {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff7a8a;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 122, 138, 0.8);
+        }
+
+        .grid-visual {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 10px;
+            height: 100%;
+            padding: 20px;
+        }
+
+        .grid-item {
+            background: rgba(255, 122, 138, 0.2);
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        footer {
+            margin-top: 40px;
+            color: #a0a0c0;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .subtitle {
+                font-size: 1rem;
+            }
+            
+            .player-container {
+                padding: 20px;
+            }
+            
+            .visualization {
+                height: 250px;
+            }
+            
+            .controls {
+                gap: 15px;
+            }
+            
+            .control-btn {
+                width: 45px;
+                height: 45px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.6rem;
+            }
+            
+            .player-container {
+                padding: 15px;
+            }
+            
+            .visualization {
+                height: 200px;
+            }
+            
+            .controls {
+                gap: 10px;
+            }
+            
+            .control-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+            
+            .animation-controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .animation-control-group {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SoundCloud Sync Animation</h1>
+            <p class="subtitle">Experience synchronized visualizations that perfectly match your music timeline</p>
+        </header>
+
+        <main>
+            <div class="player-container">
+                <div class="visualization" id="visualization">
+                    <!-- Animation elements will be generated here -->
+                </div>
+                
+                <div class="soundcloud-embed">
+                    <iframe id="soundcloud-player" width="100%" height="166" scrolling="no" frameborder="no" 
+                            src="https://w.soundcloud.com/player/?url=https://soundcloud.com/tetouze">
+                    </iframe>
+                </div>
+                
+                <div class="controls">
+                    <button class="control-btn" id="play-btn">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button class="control-btn" id="pause-btn">
+                        <i class="fas fa-pause"></i>
+                    </button>
+                    <button class="control-btn" id="restart-btn">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+                
+                <div class="sync-info">
+                    <p>Animation synchronized with track: <span id="track-title">Loading...</span></p>
+                    <p>Current time: <span id="current-time">0:00</span> | Animation progress: <span id="animation-progress">0%</span></p>
+                </div>
+            </div>
+            
+            <div class="animation-controls">
+                <div class="animation-control-group">
+                    <h3>Circle Animation Controls</h3>
+                    <div class="slider-container">
+                        <label for="size-slider">Element Size</label>
+                        <input type="range" min="10" max="200" value="80" class="slider" id="size-slider">
+                    </div>
+                    <div class="slider-container">
+                        <label for="speed-slider">Animation Speed</label>
+                        <input type="range" min="1" max="20" value="10" class="slider" id="speed-slider">
+                    </div>
+                </div>
+                
+                <div class="animation-control-group">
+                    <h3>Bar Visualization</h3>
+                    <div class="grid-visual" id="grid-visual">
+                        <!-- Grid items will be generated here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>Synchronized animations update in real-time with SoundCloud playback</p>
+        </footer>
+    </div>
+
+    <script>
+        // SoundCloud Widget API
+        let widget;
+        let isPlaying = false;
+        let animationStartTime = null;
+        let animationProgress = 0;
+        let lastPosition = 0;
+        let animationId = null;
+        
+        // DOM Elements
+        const visualization = document.getElementById('visualization');
+        const playBtn = document.getElementById('play-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const trackTitle = document.getElementById('track-title');
+        const currentTimeEl = document.getElementById('current-time');
+        const animationProgressEl = document.getElementById('animation-progress');
+        const sizeSlider = document.getElementById('size-slider');
+        const speedSlider = document.getElementById('speed-slider');
+        const gridVisual = document.getElementById('grid-visual');
+        
+        // Initialize SoundCloud widget
+        window.addEventListener('load', () => {
+            const iframe = document.getElementById('soundcloud-player');
+            widget = SC.Widget(iframe);
+            
+            // Set track title
+            widget.getCurrentSound((sound) => {
+                if (sound) {
+                    trackTitle.textContent = sound.title;
+                }
+            });
+            
+            // Create grid items for bar visualization
+            for (let i = 0; i < 20; i++) {
+                const gridItem = document.createElement('div');
+                gridItem.className = 'grid-item';
+                gridItem.style.height = `${Math.random() * 100}%`;
+                gridVisual.appendChild(gridItem);
+            }
+            
+            // Create visual elements for circle animation
+            createVisualElements();
+            
+            // Event listeners for widget
+            widget.bind(SC.Widget.Events.PLAY, () => {
+                isPlaying = true;
+                if (!animationStartTime) {
+                    animationStartTime = Date.now();
+                }
+                animate();
+            });
+            
+            widget.bind(SC.Widget.Events.PAUSE, () => {
+                isPlaying = false;
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+            });
+            
+            widget.bind(SC.Widget.Events.FINISH, () => {
+                resetAnimation();
+            });
+            
+            widget.bind(SC.Widget.Events.SEEK, () => {
+                resetAnimation();
+            });
+            
+            // Button event listeners
+            playBtn.addEventListener('click', () => {
+                widget.play();
+            });
+            
+            pauseBtn.addEventListener('click', () => {
+                widget.pause();
+            });
+            
+            restartBtn.addEventListener('click', () => {
+                widget.seekTo(0);
+                resetAnimation();
+            });
+            
+            // Slider event listeners
+            sizeSlider.addEventListener('input', () => {
+                const elements = document.querySelectorAll('.visual-element');
+                elements.forEach(el => {
+                    el.style.width = `${sizeSlider.value}px`;
+                    el.style.height = `${sizeSlider.value}px`;
+                });
+            });
+            
+            speedSlider.addEventListener('input', () => {
+                // Speed adjustment is handled in the animation loop
+            });
+        });
+        
+        function createVisualElements() {
+            // Clear existing elements
+            visualization.innerHTML = '';
+            
+            // Create central element
+            const centerElement = document.createElement('div');
+            centerElement.className = 'visual-element';
+            centerElement.style.width = `${sizeSlider.value}px`;
+            centerElement.style.height = `${sizeSlider.value}px`;
+            centerElement.id = 'center-element';
+            visualization.appendChild(centerElement);
+            
+            // Create orbiting elements
+            for (let i = 0; i < 8; i++) {
+                const element = document.createElement('div');
+                element.className = 'visual-element';
+                element.style.width = `${sizeSlider.value * 0.6}px`;
+                element.style.height = `${sizeSlider.value * 0.6}px`;
+                element.style.opacity = '0.8';
+                element.dataset.angle = (i * 45);
+                visualization.appendChild(element);
+            }
+            
+            // Create bar elements
+            for (let i = 0; i < 30; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'visual-bar';
+                bar.style.left = `${(i * 20) + 10}px`;
+                bar.style.height = '0px';
+                visualization.appendChild(bar);
+            }
+        }
+        
+        function resetAnimation() {
+            animationStartTime = Date.now();
+            animationProgress = 0;
+            lastPosition = 0;
+            createVisualElements();
+        }
+        
+        function animate() {
+            if (!isPlaying) return;
+            
+            widget.getPosition((position) => {
+                // Update time display
+                const minutes = Math.floor(position / 60000);
+                const seconds = ((position % 60000) / 1000).toFixed(0);
+                currentTimeEl.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                
+                // Calculate animation progress based on track position
+                widget.getDuration((duration) => {
+                    if (duration > 0) {
+                        animationProgress = position / duration;
+                        animationProgressEl.textContent = `${Math.round(animationProgress * 100)}%`;
+                        
+                        // Only update animation if position has changed
+                        if (position !== lastPosition) {
+                            updateVisualizations(animationProgress);
+                            lastPosition = position;
+                        }
+                    }
+                    
+                    animationId = requestAnimationFrame(animate);
+                });
+            });
+        }
+        
+        function updateVisualioations(progress) {
+            // Update central element
+            const centerElement = document.getElementById('center-element');
+            if (centerElement) {
+                const scale = 0.8 + 0.4 * Math.sin(progress * Math.PI * 10);
+                const hue = Math.floor(progress * 360);
+                centerElement.style.transform = `translate(-50%, -50%) scale(${scale})`;
+                centerElement.style.background = `linear-gradient(45deg, hsl(${hue}, 100%, 60%), hsl(${(hue + 60) % 360}, 100%, 60%))`;
+            }
+            
+            // Update orbiting elements
+            const orbitElements = document.querySelectorAll('.visual-element:not(#center-element)');
+            orbitElements.forEach((el, i) => {
+                const angle = parseFloat(el.dataset.angle) + progress * 360 * speedSlider.value;
+                const radius = 80 + 40 * Math.sin(progress * Math.PI * 5 + i);
+                const x = 50 + radius * Math.cos(angle * Math.PI / 180);
+                const y = 50 + radius * Math.sin(angle * Math.PI / 180);
+                
+                el.style.left = `${x}%`;
+                el.style.top = `${y}%`;
+                
+                const hue = Math.floor((progress + i/8) * 360) % 360;
+                el.style.background = `linear-gradient(45deg, hsl(${hue}, 100%, 60%), hsl(${(hue + 60) % 360}, 100%, 60%))`;
+            });
+            
+            // Update bar elements
+            const barElements = document.querySelectorAll('.visualatiOn-bar');
+            barElements.forEach((bar, i) => {
+                const barHeight = 50 + 100 * Math.abs(Math.sin(progress * Math.PI * 20 + i * 0.5));
+                bar.style.height = `${barHeight}px`;
+                
+                const hue = Math.floor((progress + i/30) * 360) % 360;
+                bar.style.background = `linear-gradient(to top, hsl(${hue}, 100%, 60%), hsl(${(hue + 60) % 360}, 100%, 60%))`;
+            });
+            
+            // Update grid visualization
+            const gridItems = document.querySelectorAll('.grid-item');
+            gridItems.forEach((item, i) => {
+                const height = 20 + 80 * Math.abs(Math.sin(progress * Math.PI * 15 + i * 0.3));
+                item.style.height = `${height}%`;
+                
+                const hue = Math.floor((progress + i/20) * 360) % 360;
+                item.style.background = `linear-gradient(to top, hsl(${hue}, 100%, 60%), hsl(${(hue + 60) % 360}, 100%, 60%))`;
+            });
+        }
+        
+        // Correct function name typo
+        function updateVisualizations(progress) {
+            // Update central element
+            const centerElement = document.getElementById('center-element');
+            if (centerElement) {
+                const scale = 0.8 + 0.4 * Math.sin(progress * Math.PI * 10);
+                const hue = Math.floor(progress * 360);
+                centerElement.style.transform = `translate(-50%, -50%) scale(${scale})`;
+                centerElement.style.background = `linear-gradient(45deg, hsl(${hue}, 100%, 60%), hsl(${(hue + 60) % 360}, 100%, 60%))`;
+            }
+            
+            // Update orbiting elements
+            const orbitElements = document.querySelectorAll('.visual-element:not(#center-element)');
+            orbitElements.forEach((el, i) => {
+                const angle = parseFloat(el.dataset.angle) + progress * 360 * speedSlider.value;
+                const radius = 80 + 40 * Math.sin(progress * Math.PI * 5 + i);
+                const x = 50 + radius * Math.cos(angle * Math.PI / 180);
+                const y = 50 + radius * Math.sin(angle * Math.PI / 180);
+                
+                el.style.left = `${x}%`;
+                el.style.top = `${y}%`;
+                
+                const hue = Math.floor((progress + i/8) * 360) % 360;
+                el.style.background = `linear-gradient(45deg, hsl(${hue}, 100%, 60%), hsl(${(hue + 60) % 360}, 100%, 60%))`;
+            });
+            
+            // Update bar elements
+            const barElements = document.querySelectorAll('.visual-bar');
+            barElements.forEach((bar, i) => {
+                const barHeight = 50 + 100 * Math.abs(Math.sin(progress * Math.PI * 20 + i * 0.5));
+                bar.style.height = `${barHeight}px`;
+                
+                const hue = Math.floor((progress + i/30) * 360) % 360;
+                bar.style.background = `linear-gradient(to top, hsl(${hue}, 100%, 60%), hsl(${(hue + 60) % 360}, 100%, 60%))`;
+            });
+            
+            // Update grid visualization
+            const gridItems = document.querySelectorAll('.grid-item');
+            gridItems.forEach((item, i) => {
+                const height = 20 + 80 * Math.abs(Math.sin(progress * Math.PI * 15 + i * 0.3));
+                item.style.height = `${height}%`;
+                
+                const hue = Math.floor((progress + i/20) * 360) % 360;
+                item.style.background = `linear-gradient(to top, hsl(${hue}, 100%, 60%), hsl(${(hue + 60) % 360}, 100%, 60%))`;
+            });
+        }
+    </script>
+    
+    <script src="https://w.soundcloud.com/player/api.js"></script>
+</body>
+</html>
